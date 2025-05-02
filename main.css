@@ -1,0 +1,46 @@
+*{
+    padding: 0;
+    margin: 0;
+    overflow: hidden;
+}
+
+body{
+    background-color: rgb(58, 58, 83);
+
+}
+
+.first{
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+
+}
+
+.second{
+    color: red !important;
+    margin: 40px;
+    border: 1px solid rgb(167, 206, 26) ;
+    display: block;
+
+width: 90%;
+text-align: center;
+
+}
+
+.third{
+    background-color: aliceblue;
+    width: 80%;
+    height: 90%;
+    display: flex;
+    justify-content: center;
+    margin: auto;
+    margin-top: 20px;
+    position: relative;
+  overflow: hidden;
+}
+
+
+.particle {
+    position: absolute;
+    border-radius: 50%;
+  }
