@@ -1,251 +1,266 @@
 const container = document.querySelector(".third");
 const objects = [];
-let clickCount = 0; // Счётчик количества кликов
-let gameOver = false; //Флаг завершения игры
+let clickCount = 0;
+let gameOver = false;
+const typesSequence = ["paper", "rock", "scissor"];
+let timer = null;
+let elapsedTime = 0;
 
-const counter = {
-  rock: 0,
-  paper: 0,
-  scissor: 0,
-};
-
+const counter = { rock: 0, paper: 0, scissor: 0 };
 const counterElement = document.getElementById("type-counter");
-// counterElement.style.position = 'absolute';
-counterElement.style.top = "50px";
-counterElement.style.right = "100px";
-counterElement.style.color = "white";
-counterElement.style.fontSize = "18px";
 
-function updateCounter() {
-  // counterElement.innerHTML = `
-  counterElement.innerHTML = `
-        <span style="margin-right: 15px;">
-            <img src="images/rock.png" alt="rock" style="width: 24px; vertical-align: middle;"> ${counter.rock}
-        </span>
-        <span style="margin-right: 15px;">
-            <img src="images/paper.png" alt="paper" style="width: 24px; vertical-align: middle;"> ${counter.paper}
-        </span>
-        <span>
-            <img src="images/scissor.png" alt="scissor" style="width: 24px; vertical-align: middle;"> ${counter.scissor}
-        </span>
-    `;
-  // counterElement.textContent = `rock: ${counter.rock}  paper: ${counter.paper}   scissor: ${counter.scissor}`
-}
+const timerElement = document.querySelector(".timerElement");
+timerElement.style.marginTop = "10px";
+timerElement.style.color = "black";
+timerElement.style.fontSize = "18px";
+counterElement.parentElement?.appendChild(timerElement);
+updateTimer()
 
-// Создаём стартовую инструкцию
+const music = new Audio("others/mortal_combat.mp3");
+music.loop = true;
+music.volume = 0.3;
+
 const instruction = document.createElement("div");
 instruction.className = "instruction";
 instruction.textContent = "Нажмите в 3-х точках на белом листе, чтобы начать";
-instruction.style.position = "absolute";
-instruction.style.top = "20px";
-instruction.style.left = "50%";
-instruction.style.transform = "translateX(-50%)";
-instruction.style.backgroundColor = "rgba(255, 255, 255, 0.9)";
-instruction.style.padding = "10px 20px";
-instruction.style.borderRadius = "8px";
-instruction.style.fontSize = "18px";
-instruction.style.color = "#333";
-instruction.style.zIndex = "1001";
-instruction.style.boxShadow = "0 2px 10px rgba(0,0,0,0.2)";
 container.appendChild(instruction);
+
+updateCounter();
+
+let animationRunning = false;
 
 container.addEventListener("click", (e) => {
   if (clickCount < 3 && !gameOver) {
-    // Добавляем только 3 клика если игра не завершена
     const rect = container.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    createParticles(x, y, clickCount);
-    clickCount++; // Увеличиваем счётчик кликов
+    createParticles(x, y, typesSequence[clickCount]);
+    clickCount++;
   }
 
   if (clickCount === 3 && instruction) {
     instruction.remove();
+    // music.play()
+  }
+
+  if (clickCount === 1 && !timer) {
+    music.play();
+    timer = setInterval(() => {
+      elapsedTime++;
+      updateTimer();
+    }, 1000);
   }
 });
 
-function createParticles(x, y, clickIndex) {
-  const types = ["paper", "rock", "scissor"]; // Типы частиц
-  const type = types[clickIndex]; // Определяем тип на основе клика
+function createParticles(x, y, type) {
   const particlesPerType = 30;
 
-  // Создаем 10 частиц выбранного типа
   for (let i = 0; i < particlesPerType; i++) {
     const angle = Math.random() * Math.PI * 2;
     const speed = 2;
-
     const dx = Math.cos(angle);
     const dy = Math.sin(angle);
 
-    const div = document.createElement("div");
-    div.className = `particle ${type}`;
-    div.style.position = "absolute";
-    div.style.left = `${x}px`;
-    div.style.top = `${y}px`;
-    div.style.width = "30px";
-    div.style.height = "30px";
-
-    const img = document.createElement("img");
-    img.src = `images/${type}.png`;
-    img.style.width = "100%";
-    img.style.height = "100%";
-    img.style.pointerEvents = "none";
-
-    div.appendChild(img);
-    container.appendChild(div);
-
-    objects.push({
-      element: div,
-      type: type,
-      x: x,
-      y: y,
-      dx: dx,
-      dy: dy,
-      speed: speed,
-    });
-
+    const particle = createParticle(x, y, dx, dy, speed, type);
+    objects.push(particle);
     counter[type]++;
   }
 
   updateCounter();
-  if (!window.animationStarted) {
-    window.animationStarted = true;
+
+  if (!animationRunning) {
+    animationRunning = true;
     animateParticles();
   }
+}
 
-  function animateParticles() {
-    objects.forEach((object) => {
-      object.x += object.dx * object.speed;
-      object.y += object.dy * object.speed;
+function animateParticles() {
+  if (!animationRunning) return;
 
-      if (object.x <= 0 || object.x >= container.offsetWidth - 30) {
-        object.dx = -object.dx;
+  objects.forEach((obj) => {
+    obj.x += obj.dx * obj.speed;
+    obj.y += obj.dy * obj.speed;
+
+    if (obj.x <= 0 || obj.x >= container.offsetWidth - 30) obj.dx *= -1;
+    if (obj.y <= 0 || obj.y >= container.offsetHeight - 30) obj.dy *= -1;
+
+    obj.element.style.left = `${obj.x}px`;
+    obj.element.style.top = `${obj.y}px`;
+
+    objects.forEach((other) => {
+      if (other !== obj && isCollision(obj, other)) {
+        handleCollision(obj, other);
       }
-
-      if (object.y <= 0 || object.y >= container.offsetHeight - 30) {
-        object.dy = -object.dy;
-      }
-
-      object.element.style.left = `${object.x}px`;
-      object.element.style.top = `${object.y}px`;
-
-      objects.forEach((otherObject) => {
-        if (otherObject !== object && isCollision(object, otherObject)) {
-          handleCollision(object, otherObject);
-        }
-      });
     });
+  });
 
-    // Проверяем, все ли частицы одного типа
-    checkGameEnd();
+  checkGameEnd();
+  requestAnimationFrame(animateParticles);
+}
 
-    requestAnimationFrame(animateParticles);
+function createParticle(x, y, dx, dy, speed, type) {
+  const div = document.createElement("div");
+  div.className = `particle ${type}`;
+  applyStyles(div, {
+    position: "absolute",
+    left: `${x}px`,
+    top: `${y}px`,
+    width: "30px",
+    height: "30px",
+  });
+
+  const img = document.createElement("img");
+  img.src = `images/${type}.gif`;
+  applyStyles(img, {
+    width: "100%",
+    height: "100%",
+    pointerEvents: "none",
+  });
+
+  div.appendChild(img);
+  container.appendChild(div);
+
+  return { element: div, type, x, y, dx, dy, speed };
+}
+
+function isCollision(a, b) {
+  return !(
+    a.x + 30 < b.x ||
+    a.x > b.x + 30 ||
+    a.y + 30 < b.y ||
+    a.y > b.y + 30
+  );
+}
+
+function handleCollision(a, b) {
+  const winMap = { rock: "scissor", paper: "rock", scissor: "paper" };
+
+  if (winMap[a.type] === b.type) {
+    counter[b.type]--;
+    b.type = a.type;
+    counter[b.type]++;
+    updateParticleType(b);
+  } else if (winMap[b.type] === a.type) {
+    counter[a.type]--;
+    a.type = b.type;
+    counter[a.type]++;
+    updateParticleType(a);
   }
 
-  function isCollision(obj1, obj2) {
-    return !(
-      obj1.x + 30 < obj2.x ||
-      obj1.x > obj2.x + 30 ||
-      obj1.y + 30 < obj2.y ||
-      obj1.y > obj2.y + 30
-    );
+  updateCounter();
+}
+
+function updateParticleType(particle) {
+  const img = particle.element.querySelector("img");
+  img.src = `images/${particle.type}.gif`;
+}
+
+function updateCounter() {
+  counterElement.innerHTML = `
+    <span style="margin-right: 15px;">
+      <img src="images/rock.gif" style="width:24px;vertical-align:middle;"> ${counter.rock}
+    </span>
+    <span style="margin-right: 15px;">
+      <img src="images/paper.gif" style="width:24px;vertical-align:middle;"> ${counter.paper}
+    </span>
+    <span>
+      <img src="images/scissor.gif" style="width:24px;vertical-align:middle;"> ${counter.scissor}
+    </span>
+  `;
+}
+
+function checkGameEnd() {
+  if (clickCount < 3 || gameOver) return;
+  const unique = [...new Set(objects.map((obj) => obj.type))];
+
+  if (unique.length === 1 && !gameOver) {
+    gameOver = true;
+
+
+    displayGameOverMessage(unique[0]);
+    clearInterval(timer);
+    timer = null;
   }
+}
 
-  function handleCollision(obj1, obj2) {
-    const winMap = {
-      rock: "scissor",
-      paper: "rock",
-      scissor: "paper",
-    };
+function updateTimer() {
+  const minutes = Math.floor(elapsedTime / 60);
+  const seconds = elapsedTime % 60;
+  timerElement.textContent = `⏱ Время: ${minutes}:${seconds
+    .toString()
+    .padStart(2, "0")}`;
+}
 
-    if (winMap[obj1.type] === obj2.type) {
-      counter[obj2.type]--;
-      obj2.type = obj1.type;
-      counter[obj2.type]++;
-      updateParticleType(obj2);
-    } else if (winMap[obj2.type] === obj1.type) {
-      counter[obj1.type]--;
-      obj1.type = obj2.type;
-      counter[obj1.type]++;
-      updateParticleType(obj1);
-      updateCounter();
-    }
+function displayGameOverMessage(winnerType) {
+  const overlay = document.createElement("div");
+  overlay.className = "overlay"
+
+  const message = document.createElement("div");
+  message.textContent = `Игра окончена. Победила ${winnerType}`;
+  message.className = "message"
+ 
+
+  const image = document.createElement("img");
+  image.src = `images/${winnerType}.gif`;
+  applyStyles(image, {
+    width: "80px",
+    height: "80px",
+    marginBottom: "20px",
+  });
+
+  const button = document.createElement("button");
+  button.textContent = "Начать заново";
+  button.className = "button"
+
+  button.addEventListener("click", (e) => {
+    e.stopPropagation();
+    resetGame(overlay);
+    // music.play();
+    music.currentTime = 0;
+  });
+
+  const finalTime = document.createElement("div");
+  const h = Math.floor(elapsedTime / 3600);
+  const m = Math.floor((elapsedTime % 3600) / 60);
+  const s = elapsedTime % 60;
+  finalTime.textContent = `Ваше время: ${h}:${m.toString().padStart(2, "0")}:${s
+    .toString()
+    .padStart(2, "0")}`;
+  applyStyles(finalTime, {
+    color: "white",
+    fontSize: "16px",
+    marginTop: "10px",
+  });
+
+  overlay.appendChild(message);
+  overlay.appendChild(image);
+  overlay.appendChild(button);
+  overlay.appendChild(finalTime);
+  container.appendChild(overlay);
+}
+
+function resetGame(overlay) {
+  overlay.remove();
+  objects.forEach((obj) => obj.element.remove());
+  objects.length = 0;
+  window.animationStarted = false;
+  animationRunning = false;
+  gameOver = false;
+  clickCount = 0;
+  container.appendChild(instruction);
+  counter.rock = 0;
+  counter.paper = 0;
+  counter.scissor = 0;
+  updateCounter();
+
+  if (timer) {
+    clearInterval(timer);
+    timer = null;
   }
+  elapsedTime = 0;
+  updateTimer();
+}
 
-  function updateParticleType(particle) {
-    const img = particle.element.querySelector("img");
-    img.src = `images/${particle.type}.png`;
-  }
-
-  function checkGameEnd() {
-    if (clickCount < 3 || gameOver) return;
-
-    const types = objects.map((object) => object.type);
-    const uniqueTypes = [...new Set(types)];
-
-    if (uniqueTypes.length === 1 && !gameOver) {
-      gameOver = true;
-      const winnerType = uniqueTypes[0];
-      displayGameOverMessage(winnerType);
-    }
-  }
-
-  function displayGameOverMessage(winnerType) {
-    const overlay = document.createElement("div");
-    overlay.className = "game-over-overlay";
-    overlay.style.position = "absolute";
-    overlay.style.left = "0";
-    overlay.style.top = "0";
-    overlay.style.width = "100%";
-    overlay.style.height = "100%";
-    overlay.style.backgroundColor = "rgba(0, 0, 0, 0.6)";
-    overlay.style.display = "flex";
-    overlay.style.flexDirection = "column";
-    overlay.style.alignItems = "center";
-    overlay.style.justifyContent = "center";
-    overlay.style.zIndex = "1000";
-
-    const message = document.createElement("div");
-    message.style.color = "#fff";
-    message.style.fontSize = "24px";
-    message.style.marginBottom = "20px";
-    message.textContent = `Игра окончена. Победила ${winnerType}`;
-
-    const image = document.createElement("img");
-    image.src = `images/${winnerType}.png`;
-    image.style.width = "80px";
-    image.style.height = "80px";
-    image.style.marginBottom = "20px";
-
-    const button = document.createElement("button");
-    button.textContent = "Начать заново";
-    button.style.padding = "10px 20px";
-    button.style.fontSize = "16px";
-    button.style.cursor = "pointer";
-    button.style.border = "none";
-    button.style.borderRadius = "5px";
-    button.style.backgroundColor = "#4caf50";
-    button.style.color = "white";
-
-    button.addEventListener("click", (event) => {
-      event.stopPropagation();
-      overlay.remove();
-      objects.forEach((obj) => obj.element.remove());
-      objects.length = 0;
-      window.animationStarted = false;
-      gameOver = false;
-      clickCount = 0;
-      container.appendChild(instruction);
-
-      counter.rock = 0;
-      counter.paper = 0;
-      counter.scissor = 0;
-      updateCounter();
-    });
-
-    overlay.appendChild(message);
-    overlay.appendChild(image);
-    overlay.appendChild(button);
-    container.appendChild(overlay);
-  }
+function applyStyles(el, styles) {
+  Object.assign(el.style, styles);
 }
